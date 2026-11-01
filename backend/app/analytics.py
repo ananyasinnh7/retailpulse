@@ -38,7 +38,7 @@ def recommendations(db: Session) -> list[dict]:
     products = db.scalars(select(Product)).all()
     results = []
     for product in products:
-        avg_daily = frame[frame.product == product.name].units.mean()
+        avg_daily = frame[frame["product"] == product.name]["units"].mean()
         demand = max(1, round(float(avg_daily) * 7))
         if product.stock <= product.reorder_level or product.stock < demand:
             results.append({
@@ -56,7 +56,7 @@ def forecast(db: Session) -> list[dict]:
     products = db.scalars(select(Product)).all()
     output = []
     for product in products:
-        avg = frame[frame.product == product.name].units.mean()
+        avg = frame[frame["product"] == product.name]["units"].mean()
         for offset in range(1, 8):
             output.append({"date": str(latest + timedelta(days=offset)),
                            "product": product.name, "units": max(1, round(float(avg)))})
@@ -104,9 +104,9 @@ def alerts(db: Session) -> list[dict]:
             })
     frame = sales_frame(db)
     if not frame.empty:
-        recent = frame[frame.date >= date.today() - timedelta(days=6)].groupby("product").units.sum()
-        previous = frame[(frame.date < date.today() - timedelta(days=6)) &
-                         (frame.date >= date.today() - timedelta(days=13))].groupby("product").units.sum()
+        recent = frame[frame["date"] >= date.today() - timedelta(days=6)].groupby("product")["units"].sum()
+        previous = frame[(frame["date"] < date.today() - timedelta(days=6)) &
+                         (frame["date"] >= date.today() - timedelta(days=13))].groupby("product")["units"].sum()
         for product, units in recent.items():
             earlier = previous.get(product, 0)
             if earlier and units < earlier * 0.65:
@@ -117,3 +117,20 @@ def alerts(db: Session) -> list[dict]:
                     "product": product,
                 })
     return results
+
+
+def promotion_simulation(weekly_revenue: float, discount_percent: float,
+                         expected_volume_lift_percent: float) -> dict:
+    projected_revenue = (weekly_revenue * (1 - discount_percent / 100) *
+                         (1 + expected_volume_lift_percent / 100))
+    revenue_change = projected_revenue - weekly_revenue
+    return {
+        "projected_revenue": round(projected_revenue, 2),
+        "revenue_change": round(revenue_change, 2),
+        "revenue_change_percent": round(revenue_change / weekly_revenue * 100, 2)
+        if weekly_revenue else 0,
+        "break_even_lift_percent": round(
+            (1 / (1 - discount_percent / 100) - 1) * 100, 2
+        ) if discount_percent < 100 else None,
+        "recommendation": "Test this promotion" if revenue_change > 0 else "Avoid this promotion",
+    }
