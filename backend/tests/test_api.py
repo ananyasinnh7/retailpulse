@@ -42,3 +42,13 @@ def test_sales_import_validates_and_imports_csv():
                            files={"file": ("sales.csv", csv_file, "text/csv")})
     assert response.status_code == 200
     assert response.json()["imported"] == 1
+
+
+def test_segments_and_alerts_are_available():
+    headers = account()
+    segments = client.get("/api/customers/segments", headers=headers)
+    alerts = client.get("/api/alerts", headers=headers)
+    assert segments.status_code == 200
+    assert len(segments.json()) >= 5
+    assert alerts.status_code == 200
+    assert any(item["type"] == "inventory" for item in alerts.json())

@@ -2,7 +2,7 @@ from datetime import date, timedelta
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from .models import Product, Sale
+from .models import Customer, CustomerPurchase, Product, Sale
 
 
 def sales_frame(db: Session) -> pd.DataFrame:
@@ -61,3 +61,59 @@ def forecast(db: Session) -> list[dict]:
             output.append({"date": str(latest + timedelta(days=offset)),
                            "product": product.name, "units": max(1, round(float(avg)))})
     return output
+
+
+def customer_segments(db: Session) -> list[dict]:
+    customers = db.scalars(select(Customer)).all()
+    purchases = db.scalars(select(CustomerPurchase)).all()
+    today = date.today()
+    output = []
+    for customer in customers:
+        rows = [p for p in purchases if p.customer_id == customer.id]
+        if not rows:
+            continue
+        recency = (today - max(p.purchase_date for p in rows)).days
+        frequency = len(rows)
+        monetary = sum(p.amount for p in rows)
+        if recency <= 7 and frequency >= 8:
+            segment = "Loyal"
+        elif recency > 21:
+            segment = "At risk"
+        elif monetary >= 180:
+            segment = "High value"
+        else:
+            segment = "Growing"
+        output.append({
+            "id": customer.id, "name": customer.name, "email": customer.email,
+            "recency_days": recency, "frequency": frequency,
+            "monetary": round(monetary, 2), "segment": segment,
+        })
+    return sorted(output, key=lambda x: x["monetary"], reverse=True)
+
+
+def alerts(db: Session) -> list[dict]:
+    products = db.scalars(select(Product)).all()
+    results = []
+    for product in products:
+        if product.stock <= product.reorder_level:
+            results.append({
+                "type": "inventory", "severity": "high",
+                "title": f"{product.name} needs reordering",
+                "detail": f"{product.stock} units left, reorder level is {product.reorder_level}.",
+                "product": product.name,
+            })
+    frame = sales_frame(db)
+    if not frame.empty:
+        recent = frame[frame.date >= date.today() - timedelta(days=6)].groupby("product").units.sum()
+        previous = frame[(frame.date < date.today() - timedelta(days=6)) &
+                         (frame.date >= date.today() - timedelta(days=13))].groupby("product").units.sum()
+        for product, units in recent.items():
+            earlier = previous.get(product, 0)
+            if earlier and units < earlier * 0.65:
+                results.append({
+                    "type": "sales", "severity": "medium",
+                    "title": f"{product} sales are slowing",
+                    "detail": f"Sales are down {round((1 - units / earlier) * 100)}% versus the prior week.",
+                    "product": product,
+                })
+    return results
