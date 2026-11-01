@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import Date, Float, Integer, String
+from sqlalchemy import Date, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from .database import Base
 
@@ -22,3 +22,19 @@ class Sale(Base):
     sale_date: Mapped[date] = mapped_column(Date, nullable=False)
     units: Mapped[int] = mapped_column(Integer, nullable=False)
     revenue: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+
+
+class SessionToken(Base):
+    __tablename__ = "sessions"
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
