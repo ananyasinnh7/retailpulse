@@ -11,6 +11,8 @@ RetailPulse is an end-to-end retail intelligence platform for small businesses. 
 - Account registration/login with protected inventory APIs
 - Validated CSV sales imports
 - Product creation and inventory updates
+- Promotion simulation with break-even analysis
+- Protected operations refresh endpoint for scheduled jobs
 - Responsive dashboard served at `/`
 
 ## Run locally
@@ -49,6 +51,8 @@ curl http://127.0.0.1:8000/api/products \
 ```
 
 Sales CSV files must contain `date,product,units` columns. Product names must match the inventory catalog.
+
+Promotion simulations accept weekly revenue, discount percentage, and expected volume lift. The API returns projected revenue, revenue change, break-even lift, and a recommendation.
 
 ## Roadmap
 

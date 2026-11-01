@@ -19,3 +19,9 @@ class ProductRequest(BaseModel):
     cost: float = Field(gt=0)
     stock: int = Field(ge=0)
     reorder_level: int = Field(ge=0)
+
+
+class PromotionRequest(BaseModel):
+    weekly_revenue: float = Field(ge=0)
+    discount_percent: float = Field(ge=0, le=90)
+    expected_volume_lift_percent: float = Field(ge=0, le=500)
