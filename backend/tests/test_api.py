@@ -52,3 +52,16 @@ def test_segments_and_alerts_are_available():
     assert len(segments.json()) >= 5
     assert alerts.status_code == 200
     assert any(item["type"] == "inventory" for item in alerts.json())
+
+
+def test_promotion_simulation_and_refresh():
+    headers = account()
+    simulation = client.post("/api/promotions/simulate", headers=headers, json={
+        "weekly_revenue": 1000, "discount_percent": 15,
+        "expected_volume_lift_percent": 25,
+    })
+    assert simulation.status_code == 200
+    assert simulation.json()["projected_revenue"] == 1062.5
+    refreshed = client.post("/api/operations/refresh", headers=headers)
+    assert refreshed.status_code == 200
+    assert "refreshed_at" in refreshed.json()

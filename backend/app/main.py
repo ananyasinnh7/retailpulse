@@ -8,11 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from .analytics import alerts, customer_segments, dashboard, forecast, recommendations
+from .analytics import (alerts, customer_segments, dashboard, forecast,
+                        promotion_simulation, recommendations)
 from .auth import create_token, hash_password, require_user, verify_password
 from .database import Base, SessionLocal, engine
 from .models import Customer, CustomerPurchase, Product, Sale, User
-from .schemas import LoginRequest, ProductRequest, RegisterRequest
+from .schemas import LoginRequest, ProductRequest, PromotionRequest, RegisterRequest
 
 app = FastAPI(title="RetailPulse API", version="0.1.0")
 allowed_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()]
@@ -123,6 +124,21 @@ def get_customer_segments(db: Session = Depends(get_db), _: User = Depends(authe
 @app.get("/api/alerts")
 def get_alerts(db: Session = Depends(get_db), _: User = Depends(authenticated_user)):
     return alerts(db)
+
+
+@app.post("/api/promotions/simulate")
+def simulate_promotion(payload: PromotionRequest,
+                       _: User = Depends(authenticated_user)):
+    return promotion_simulation(**payload.model_dump())
+
+
+@app.post("/api/operations/refresh")
+def refresh_operations(db: Session = Depends(get_db), _: User = Depends(authenticated_user)):
+    return {
+        "refreshed_at": datetime.now(timezone.utc).isoformat(),
+        "recommendations": len(recommendations(db)),
+        "alerts": len(alerts(db)),
+    }
 
 
 @app.get("/api/products")
