@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from .analytics import (alerts, customer_segments, dashboard, forecast,
@@ -139,6 +139,26 @@ def refresh_operations(db: Session = Depends(get_db), _: User = Depends(authenti
         "recommendations": len(recommendations(db)),
         "alerts": len(alerts(db)),
     }
+
+
+@app.get("/api/reports/sales.csv")
+def export_sales_report(db: Session = Depends(get_db),
+                        _: User = Depends(authenticated_user)):
+    rows = db.query(Sale, Product).join(Product, Sale.product_id == Product.id).order_by(Sale.sale_date).all()
+    stream = io.StringIO()
+    writer = csv.writer(stream)
+    writer.writerow(["date", "product", "category", "units", "revenue", "profit"])
+    for sale, product in rows:
+        writer.writerow([
+            sale.sale_date, product.name, product.category, sale.units,
+            f"{sale.revenue:.2f}", f"{sale.revenue - sale.units * product.cost:.2f}",
+        ])
+    stream.seek(0)
+    return StreamingResponse(
+        iter([stream.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=retailpulse-sales.csv"},
+    )
 
 
 @app.get("/api/products")
