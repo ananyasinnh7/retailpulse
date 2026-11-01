@@ -1,16 +1,31 @@
-async function load() {
-  const [dashboard, recommendations] = await Promise.all([
-    fetch('/api/dashboard').then(r => r.json()),
-    fetch('/api/recommendations').then(r => r.json())
-  ]);
-  document.querySelector('#revenue').textContent = '$' + dashboard.revenue.toLocaleString();
-  document.querySelector('#profit').textContent = '$' + dashboard.profit.toLocaleString();
-  document.querySelector('#margin').textContent = dashboard.margin + '%';
-  document.querySelector('#units').textContent = dashboard.units.toLocaleString();
-  new Chart(document.querySelector('#revenueChart'), {type:'line', data:{labels:dashboard.daily.map(x=>x.date.slice(5)), datasets:[{data:dashboard.daily.map(x=>x.revenue), borderColor:'#319b68', backgroundColor:'rgba(49,155,104,.12)', fill:true, tension:.35, pointRadius:0}]}, options:{plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#edf1ee'},ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}});
-  const colors=['#55b980','#83b4a0','#d9ad54','#b6d7c4'];
-  new Chart(document.querySelector('#categoryChart'), {type:'doughnut', data:{labels:dashboard.categories.map(x=>x.name), datasets:[{data:dashboard.categories.map(x=>x.revenue), backgroundColor:colors, borderWidth:0}]}, options:{cutout:'70%', plugins:{legend:{display:false}}}});
-  document.querySelector('#categoryLegend').innerHTML=dashboard.categories.map(x=>`<span>${x.name} <b>$${x.revenue.toLocaleString()}</b></span>`).join('');
-  document.querySelector('#recommendations').innerHTML=recommendations.map(x=>`<tr><td>${x.product}</td><td>${x.category}</td><td>${x.stock}</td><td>${x.forecast_7d} units</td><td><b>${x.order} units</b></td><td><span class="badge ${x.priority}">${x.priority}</span></td></tr>`).join('');
+const state = { token: localStorage.getItem('retailpulse_token'), register: true };
+const $ = selector => document.querySelector(selector);
+const api = async (path, options = {}) => {
+  const headers = {...(options.headers || {})};
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const response = await fetch(path, {...options, headers});
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || 'Request failed');
+  return body;
+};
+function showNotice(message, error = false) { $('#notice').textContent = message; $('#notice').className = `notice ${error ? 'error' : 'success'}`; setTimeout(() => $('#notice').textContent = '', 3500); }
+function setView(view) { document.querySelectorAll('.view, #overview').forEach(x => x.classList.add('hidden')); $(`#${view}`).classList.remove('hidden'); document.querySelectorAll('nav a').forEach(x => x.classList.toggle('active', x.dataset.view === view)); if (view === 'inventory') loadProducts(); if (view === 'forecast') loadForecast(); }
+async function loadDashboard() {
+  const [dashboard, recommendations] = await Promise.all([api('/api/dashboard'), api('/api/recommendations')]);
+  $('#revenue').textContent = '$' + dashboard.revenue.toLocaleString(); $('#profit').textContent = '$' + dashboard.profit.toLocaleString(); $('#margin').textContent = dashboard.margin + '%'; $('#units').textContent = dashboard.units.toLocaleString();
+  new Chart($('#revenueChart'), {type:'line', data:{labels:dashboard.daily.map(x=>x.date.slice(5)), datasets:[{data:dashboard.daily.map(x=>x.revenue), borderColor:'#319b68', backgroundColor:'rgba(49,155,104,.12)', fill:true, tension:.35, pointRadius:0}]}, options:{plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#edf1ee'},ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}});
+  const colors=['#55b980','#83b4a0','#d9ad54','#b6d7c4']; new Chart($('#categoryChart'), {type:'doughnut', data:{labels:dashboard.categories.map(x=>x.name), datasets:[{data:dashboard.categories.map(x=>x.revenue), backgroundColor:colors, borderWidth:0}]}, options:{cutout:'70%', plugins:{legend:{display:false}}}});
+  $('#categoryLegend').innerHTML = dashboard.categories.map(x => `<span>${x.name} <b>$${x.revenue.toLocaleString()}</b></span>`).join('');
+  $('#recommendations').innerHTML = recommendations.map(x => `<tr><td>${x.product}</td><td>${x.category}</td><td>${x.stock}</td><td>${x.forecast_7d} units</td><td><b>${x.order} units</b></td><td><span class="badge ${x.priority}">${x.priority}</span></td></tr>`).join('');
 }
-load().catch(() => document.querySelector('#recommendations').innerHTML='<tr><td colspan="6">Could not load analytics data.</td></tr>');
+async function loadProducts() { const products = await api('/api/products'); $('#products').innerHTML = products.map(p => `<tr><td><b>${p.name}</b></td><td>${p.category}</td><td>$${p.price.toFixed(2)}</td><td>$${p.cost.toFixed(2)}</td><td>${p.stock}</td><td>${p.reorder_level}</td><td><span class="badge ${p.stock <= p.reorder_level ? 'high' : 'healthy'}">${p.stock <= p.reorder_level ? 'Reorder' : 'Healthy'}</span></td></tr>`).join(''); }
+async function loadForecast() { const forecast = await api('/api/forecast'); $('#forecasts').innerHTML = forecast.slice(0, 35).map(x => `<tr><td>${x.date}</td><td>${x.product}</td><td><b>${x.units}</b></td></tr>`).join(''); }
+function updateSimulation() { const revenue = Number($('#simRevenue').value) || 0; const discount = Number($('#simDiscount').value); const lift = Number($('#simLift').value); $('#discountValue').textContent = `${discount}%`; $('#liftValue').textContent = `${lift}%`; $('#projectedRevenue').textContent = '$' + (revenue * (1 - discount / 100) * (1 + lift / 100)).toLocaleString(undefined, {maximumFractionDigits: 2}); }
+async function loadApp() { const user = await api('/api/auth/me'); $('#auth').classList.add('hidden'); $('#userName').textContent = user.name; $('#greeting').textContent = user.name.split(' ')[0]; $('#userAvatar').textContent = user.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase(); await loadDashboard(); }
+$('#authToggle').onclick = () => { state.register = !state.register; $('#authName').parentElement.classList.toggle('hidden', !state.register); $('#authSubmit').textContent = state.register ? 'Create account' : 'Sign in'; $('#authToggle').textContent = state.register ? 'Already have an account? Sign in' : 'New here? Create an account'; };
+$('#authForm').onsubmit = async event => { event.preventDefault(); $('#authError').textContent = ''; try { const payload = {email: $('#authEmail').value, password: $('#authPassword').value}; if (state.register) payload.name = $('#authName').value; const result = await api(state.register ? '/api/auth/register' : '/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); state.token = result.token; localStorage.setItem('retailpulse_token', state.token); await loadApp(); } catch (error) { $('#authError').textContent = error.message; } };
+$('#logout').onclick = () => { localStorage.removeItem('retailpulse_token'); location.reload(); };
+document.querySelectorAll('[data-view]').forEach(x => x.onclick = () => setView(x.dataset.view));
+$('#addData').onclick = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv'; input.onchange = async () => { const form = new FormData(); form.append('file', input.files[0]); try { const result = await api('/api/import/sales', {method:'POST', body:form}); showNotice(`${result.imported} sales imported successfully`); await loadDashboard(); } catch (error) { showNotice(error.message, true); } }; input.click(); };
+$('#simDiscount').oninput = updateSimulation; $('#simLift').oninput = updateSimulation; $('#simRevenue').oninput = updateSimulation;
+if (state.token) loadApp().catch(() => { localStorage.removeItem('retailpulse_token'); $('#auth').classList.remove('hidden'); }); else $('#auth').classList.remove('hidden');
