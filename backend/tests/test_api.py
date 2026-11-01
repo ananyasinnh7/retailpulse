@@ -35,6 +35,15 @@ def test_authentication_protects_inventory():
     assert len(response.json()) >= 5
 
 
+def test_authenticated_user_can_create_product():
+    response = client.post("/api/products", headers=account(), json={
+        "name": "Cinnamon Roll", "category": "Bakery", "price": 4.5,
+        "cost": 1.4, "stock": 20, "reorder_level": 8,
+    })
+    assert response.status_code == 201
+    assert response.json()["name"] == "Cinnamon Roll"
+
+
 def test_sales_import_validates_and_imports_csv():
     headers = account()
     csv_file = io.BytesIO(b"date,product,units\n2026-11-01,Cold Brew,3\n")
