@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RetailPulse — Retail Intelligence</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"><span>◉</span> RetailPulse</div>
+    <nav><a class="active">Overview</a><a>Inventory</a><a>Forecasts</a><a>Promotions</a></nav>
+    <div class="sidebar-foot"><div class="avatar">AS</div><div><b>Alex Smith</b><small>Store manager</small></div></div>
+  </aside>
+  <main><header><div><p class="eyebrow">MONDAY, NOVEMBER 1, 2026</p><h1>Good morning, Alex <span>✦</span></h1><p class="muted">Here’s what’s happening across your store today.</p></div><button class="primary">＋ Add data</button></header>
+    <section class="kpis"><article><span>Revenue</span><strong id="revenue">—</strong><em class="up">↗ 12.8%</em><small>vs. previous period</small></article><article><span>Gross profit</span><strong id="profit">—</strong><em class="up">↗ 8.4%</em><small>vs. previous period</small></article><article><span>Profit margin</span><strong id="margin">—</strong><em class="up">↗ 2.1%</em><small>vs. previous period</small></article><article><span>Units sold</span><strong id="units">—</strong><em class="up">↗ 6.7%</em><small>vs. previous period</small></article></section>
+    <section class="grid"><article class="card chart-card"><div class="card-head"><div><h2>Revenue overview</h2><p class="muted">Last 30 days</p></div><select><option>Revenue</option><option>Profit</option></select></div><canvas id="revenueChart"></canvas></article>
+      <article class="card"><div class="card-head"><div><h2>Category performance</h2><p class="muted">Revenue by category</p></div></div><canvas id="categoryChart"></canvas><div id="categoryLegend" class="legend"></div></article></section>
+    <section class="card"><div class="card-head"><div><h2>Inventory recommendations</h2><p class="muted">Actions to protect sales this week</p></div><button class="text-button">View inventory →</button></div><div class="table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>In stock</th><th>7-day forecast</th><th>Suggested order</th><th>Priority</th></tr></thead><tbody id="recommendations"></tbody></table></div></section>
+  </main><script src="/assets/app.js"></script>
+</body></html>
