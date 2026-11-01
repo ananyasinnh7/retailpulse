@@ -4,7 +4,7 @@ RetailPulse is an end-to-end retail intelligence platform for small businesses. 
 
 ## Current MVP
 
-- FastAPI backend with SQLite persistence
+- FastAPI backend with SQLite development mode and PostgreSQL deployment mode
 - Seeded retail sales and inventory dataset
 - Revenue, margin, inventory health, and category analytics
 - Seven-day demand forecast and reorder recommendations
@@ -25,6 +25,16 @@ uvicorn app.main:app --reload
 
 Open http://127.0.0.1:8000. API documentation is available at http://127.0.0.1:8000/docs.
 
+## Docker deployment
+
+Docker Compose starts the API with PostgreSQL:
+
+```bash
+docker compose up --build
+```
+
+Set `DATABASE_URL` and `CORS_ORIGINS` to configure another deployment. New passwords use PBKDF2-SHA256 and sessions expire after 24 hours.
+
 ## API examples
 
 Register or log in to receive a bearer token, then use it for protected endpoints:
@@ -42,5 +52,5 @@ Sales CSV files must contain `date,product,units` columns. Product names must ma
 
 ## Roadmap
 
-PostgreSQL, scheduled jobs, promotion simulation, customer segmentation, and production deployment are planned next.
+Scheduled jobs, richer promotion experiments, and production hosting are planned next.
 Retail intelligence platform for inventory forecasting, promotion analysis, and business decision support.

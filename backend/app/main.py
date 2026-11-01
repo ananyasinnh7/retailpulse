@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
@@ -14,7 +15,8 @@ from .models import Customer, CustomerPurchase, Product, Sale, User
 from .schemas import LoginRequest, ProductRequest, RegisterRequest
 
 app = FastAPI(title="RetailPulse API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+allowed_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"])
 Base.metadata.create_all(bind=engine)
 
 
