@@ -39,7 +39,7 @@ def recommendations(db: Session) -> list[dict]:
     results = []
     for product in products:
         avg_daily = frame[frame["product"] == product.name]["units"].mean()
-        demand = max(1, round(float(avg_daily) * 7))
+        demand = max(1, round(float(0 if pd.isna(avg_daily) else avg_daily) * 7))
         if product.stock <= product.reorder_level or product.stock < demand:
             results.append({
                 "product": product.name, "category": product.category,
@@ -59,7 +59,7 @@ def forecast(db: Session) -> list[dict]:
         avg = frame[frame["product"] == product.name]["units"].mean()
         for offset in range(1, 8):
             output.append({"date": str(latest + timedelta(days=offset)),
-                           "product": product.name, "units": max(1, round(float(avg)))})
+                           "product": product.name, "units": max(1, round(float(0 if pd.isna(avg) else avg)))})
     return output
 
 
