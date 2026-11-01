@@ -65,3 +65,11 @@ def test_promotion_simulation_and_refresh():
     refreshed = client.post("/api/operations/refresh", headers=headers)
     assert refreshed.status_code == 200
     assert "refreshed_at" in refreshed.json()
+
+
+def test_sales_report_is_protected_and_downloadable():
+    assert client.get("/api/reports/sales.csv").status_code == 401
+    response = client.get("/api/reports/sales.csv", headers=account())
+    assert response.status_code == 200
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.text.splitlines()[0] == "date,product,category,units,revenue,profit"
