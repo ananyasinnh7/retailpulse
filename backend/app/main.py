@@ -12,7 +12,8 @@ from .analytics import (alerts, customer_segments, dashboard, forecast,
                         promotion_simulation, recommendations)
 from .auth import create_token, hash_password, require_user, verify_password
 from .database import Base, SessionLocal, engine
-from .models import Customer, CustomerPurchase, Product, Sale, User
+from .models import (Customer, CustomerPurchase, Product, PromotionSimulation,
+                     Sale, User)
 from .schemas import LoginRequest, ProductRequest, PromotionRequest, RegisterRequest
 
 app = FastAPI(title="RetailPulse API", version="0.1.0")
@@ -73,8 +74,14 @@ def seed():
 seed()
 
 @app.get("/api/health")
-def health():
-    return {"status": "ok"}
+def health(db: Session = Depends(get_db)):
+    return {
+        "status": "ok",
+        "database": "connected",
+        "products": db.query(Product).count(),
+        "sales": db.query(Sale).count(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.post("/api/auth/register", status_code=201)
@@ -128,8 +135,30 @@ def get_alerts(db: Session = Depends(get_db), _: User = Depends(authenticated_us
 
 @app.post("/api/promotions/simulate")
 def simulate_promotion(payload: PromotionRequest,
-                       _: User = Depends(authenticated_user)):
-    return promotion_simulation(**payload.model_dump())
+                       user: User = Depends(authenticated_user),
+                       db: Session = Depends(get_db)):
+    result = promotion_simulation(**payload.model_dump())
+    db.add(PromotionSimulation(user_id=user.id, created_at=datetime.now(timezone.utc),
+                               projected_revenue=result["projected_revenue"],
+                               **payload.model_dump()))
+    db.commit()
+    return result
+
+
+@app.get("/api/promotions/history")
+def promotion_history(user: User = Depends(authenticated_user),
+                      db: Session = Depends(get_db)):
+    rows = (db.query(PromotionSimulation)
+            .filter(PromotionSimulation.user_id == user.id)
+            .order_by(PromotionSimulation.created_at.desc())
+            .limit(25).all())
+    return [{
+        "id": row.id, "weekly_revenue": row.weekly_revenue,
+        "discount_percent": row.discount_percent,
+        "expected_volume_lift_percent": row.expected_volume_lift_percent,
+        "projected_revenue": row.projected_revenue,
+        "created_at": row.created_at.isoformat(),
+    } for row in rows]
 
 
 @app.post("/api/operations/refresh")
@@ -186,6 +215,18 @@ def update_product(product_id: int, payload: ProductRequest, db: Session = Depen
         setattr(product, key, value)
     db.commit()
     return product
+
+
+@app.delete("/api/products/{product_id}", status_code=204)
+def delete_product(product_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(authenticated_user)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if db.query(Sale).filter(Sale.product_id == product_id).first():
+        raise HTTPException(status_code=409, detail="Products with sales history cannot be deleted")
+    db.delete(product)
+    db.commit()
 
 
 @app.post("/api/import/sales")

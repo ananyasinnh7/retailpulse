@@ -14,6 +14,7 @@ RetailPulse is an end-to-end retail intelligence platform for small businesses. 
 - Promotion simulation with break-even analysis
 - Protected operations refresh endpoint for scheduled jobs
 - Downloadable CSV sales reports
+- Promotion simulation history and product deletion safeguards
 - Responsive dashboard served at `/`
 
 ## Run locally
@@ -56,6 +57,8 @@ Sales CSV files must contain `date,product,units` columns. Product names must ma
 Promotion simulations accept weekly revenue, discount percentage, and expected volume lift. The API returns projected revenue, revenue change, break-even lift, and a recommendation.
 
 Authenticated users can download the complete sales report from `GET /api/reports/sales.csv`.
+
+The hourly operations workflow calls `/api/operations/refresh`. Configure the repository secrets `RETAILPULSE_URL` and `RETAILPULSE_TOKEN` for a deployed environment.
 
 ## Roadmap
 

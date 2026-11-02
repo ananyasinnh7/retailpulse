@@ -1,0 +1,21 @@
+name: Refresh RetailPulse operations
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh configured deployment
+        env:
+          RETAILPULSE_URL: ${{ secrets.RETAILPULSE_URL }}
+          RETAILPULSE_TOKEN: ${{ secrets.RETAILPULSE_TOKEN }}
+        run: |
+          test -n "$RETAILPULSE_URL"
+          test -n "$RETAILPULSE_TOKEN"
+          curl --fail-with-body --silent --show-error \
+            -X POST "$RETAILPULSE_URL/api/operations/refresh" \
+            -H "Authorization: Bearer $RETAILPULSE_TOKEN"
