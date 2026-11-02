@@ -82,3 +82,30 @@ def test_sales_report_is_protected_and_downloadable():
     assert response.status_code == 200
     assert "attachment" in response.headers["content-disposition"]
     assert response.text.splitlines()[0] == "date,product,category,units,revenue,profit"
+
+
+def test_health_has_operational_metadata():
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["database"] == "connected"
+    assert response.json()["sales"] > 0
+
+
+def test_promotion_history_and_product_delete_rules():
+    headers = account()
+    simulation = client.post("/api/promotions/simulate", headers=headers, json={
+        "weekly_revenue": 500, "discount_percent": 10,
+        "expected_volume_lift_percent": 20,
+    })
+    assert simulation.status_code == 200
+    history = client.get("/api/promotions/history", headers=headers)
+    assert history.status_code == 200
+    assert history.json()[0]["projected_revenue"] == 540
+    blocked = client.delete("/api/products/1", headers=headers)
+    assert blocked.status_code == 409
+    created = client.post("/api/products", headers=headers, json={
+        "name": "Limited Tea", "category": "Beverages", "price": 3,
+        "cost": 1, "stock": 5, "reorder_level": 2,
+    })
+    deleted = client.delete(f"/api/products/{created.json()['id']}", headers=headers)
+    assert deleted.status_code == 204

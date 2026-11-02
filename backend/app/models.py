@@ -54,3 +54,14 @@ class CustomerPurchase(Base):
     customer_id: Mapped[int] = mapped_column(Integer, nullable=False)
     purchase_date: Mapped[date] = mapped_column(Date, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class PromotionSimulation(Base):
+    __tablename__ = "promotion_simulations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    weekly_revenue: Mapped[float] = mapped_column(Float, nullable=False)
+    discount_percent: Mapped[float] = mapped_column(Float, nullable=False)
+    expected_volume_lift_percent: Mapped[float] = mapped_column(Float, nullable=False)
+    projected_revenue: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
