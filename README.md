@@ -60,6 +60,8 @@ Authenticated users can download the complete sales report from `GET /api/report
 
 The hourly operations workflow calls `/api/operations/refresh`. Configure the repository secrets `RETAILPULSE_URL` and `RETAILPULSE_TOKEN` for a deployed environment.
 
+Without those secrets, the scheduled workflow intentionally skips the refresh instead of failing; local development still runs with SQLite at `http://127.0.0.1:8000`.
+
 ## Roadmap
 
 Scheduled jobs, richer promotion experiments, and production hosting are planned next.

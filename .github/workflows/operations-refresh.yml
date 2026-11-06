@@ -9,13 +9,28 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - name: Refresh configured deployment
+      - name: Check deployment configuration
+        id: config
         env:
           RETAILPULSE_URL: ${{ secrets.RETAILPULSE_URL }}
           RETAILPULSE_TOKEN: ${{ secrets.RETAILPULSE_TOKEN }}
         run: |
-          test -n "$RETAILPULSE_URL"
-          test -n "$RETAILPULSE_TOKEN"
+          if [ -n "$RETAILPULSE_URL" ] && [ -n "$RETAILPULSE_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Refresh configured deployment
+        if: steps.config.outputs.configured == 'true'
+        env:
+          RETAILPULSE_URL: ${{ secrets.RETAILPULSE_URL }}
+          RETAILPULSE_TOKEN: ${{ secrets.RETAILPULSE_TOKEN }}
+        run: |
           curl --fail-with-body --silent --show-error \
             -X POST "$RETAILPULSE_URL/api/operations/refresh" \
             -H "Authorization: Bearer $RETAILPULSE_TOKEN"
+
+      - name: Explain skipped refresh
+        if: steps.config.outputs.configured != 'true'
+        run: echo "Refresh skipped: configure RETAILPULSE_URL and RETAILPULSE_TOKEN repository secrets after deploying the API."
