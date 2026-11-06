@@ -39,6 +39,8 @@ docker compose up --build
 
 Set `DATABASE_URL` and `CORS_ORIGINS` to configure another deployment. New passwords use PBKDF2-SHA256 and sessions expire after 24 hours.
 
+For Railway, deploy the repository from GitHub using the root `Dockerfile`. Add a PostgreSQL service, then set `DATABASE_URL` to Railway's PostgreSQL connection string and `CORS_ORIGINS` to the public service URL.
+
 ## API examples
 
 Register or log in to receive a bearer token, then use it for protected endpoints:
