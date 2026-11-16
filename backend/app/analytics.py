@@ -14,15 +14,27 @@ def sales_frame(db: Session) -> pd.DataFrame:
     } for sale, product in rows])
 
 
-def dashboard(db: Session) -> dict:
+def dashboard(db: Session, start_date: date | None = None,
+              end_date: date | None = None, category: str | None = None,
+              product: str | None = None) -> dict:
     frame = sales_frame(db)
+    if not frame.empty:
+        if start_date:
+            frame = frame[frame["date"] >= start_date]
+        if end_date:
+            frame = frame[frame["date"] <= end_date]
+        if category:
+            frame = frame[frame["category"].str.casefold() == category.casefold()]
+        if product:
+            frame = frame[frame["product"].str.casefold() == product.casefold()]
     products = db.scalars(select(Product)).all()
     revenue = float(frame.revenue.sum())
     profit = float(frame.profit.sum())
+    margin = profit / revenue * 100 if revenue else 0
     return {
         "revenue": round(revenue, 2),
         "profit": round(profit, 2),
-        "margin": round(profit / revenue * 100, 1),
+        "margin": round(margin, 1),
         "units": int(frame.units.sum()),
         "products": len(products),
         "low_stock": sum(p.stock <= p.reorder_level for p in products),
@@ -30,6 +42,43 @@ def dashboard(db: Session) -> dict:
                   frame.groupby("date").revenue.sum().items()],
         "categories": [{"name": k, "revenue": round(v, 2)} for k, v in
                        frame.groupby("category").revenue.sum().sort_values(ascending=False).items()],
+    }
+
+
+def profit_analytics(db: Session, start_date: date | None = None,
+                          end_date: date | None = None, category: str | None = None,
+                          product: str | None = None) -> dict:
+    frame = sales_frame(db)
+    if not frame.empty:
+        if start_date:
+            frame = frame[frame["date"] >= start_date]
+        if end_date:
+            frame = frame[frame["date"] <= end_date]
+        if category:
+            frame = frame[frame["category"].str.casefold() == category.casefold()]
+        if product:
+            frame = frame[frame["product"].str.casefold() == product.casefold()]
+    revenue = float(frame["revenue"].sum()) if not frame.empty else 0
+    profit = float(frame["profit"].sum()) if not frame.empty else 0
+    grouped = frame.groupby(["category", "product"], as_index=False).agg(
+        revenue=("revenue", "sum"), profit=("profit", "sum"), units=("units", "sum")
+    ) if not frame.empty else pd.DataFrame()
+    rows = []
+    for row in grouped.to_dict("records"):
+        rows.append({
+            "category": row["category"],
+            "product": row["product"],
+            "revenue": round(float(row["revenue"]), 2),
+            "profit": round(float(row["profit"]), 2),
+            "margin": round(float(row["profit"]) / float(row["revenue"]) * 100, 1)
+            if row["revenue"] else 0,
+            "units": int(row["units"]),
+        })
+    return {
+        "revenue": round(revenue, 2),
+        "profit": round(profit, 2),
+        "margin": round(profit / revenue * 100, 1) if revenue else 0,
+        "rows": sorted(rows, key=lambda row: row["profit"], reverse=True),
     }
 
 

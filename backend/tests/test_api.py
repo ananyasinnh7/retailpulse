@@ -28,6 +28,16 @@ def test_dashboard_has_business_metrics():
     assert response.json()["revenue"] > 0
 
 
+def test_dashboard_filters_and_profit_report():
+    filtered = client.get("/api/dashboard?category=Beverages")
+    assert filtered.status_code == 200
+    assert filtered.json()["revenue"] > 0
+    report = client.get("/api/analytics/profit", headers=account())
+    assert report.status_code == 200
+    assert report.json()["profit"] > 0
+    assert report.json()["rows"][0]["margin"] > 0
+
+
 def test_authentication_protects_inventory():
     assert client.get("/api/products").status_code == 401
     response = client.get("/api/products", headers=account())

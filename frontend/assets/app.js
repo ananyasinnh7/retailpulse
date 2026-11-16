@@ -39,6 +39,7 @@ function setView(view) {
   if (view === 'forecast') loadForecast();
   if (view === 'customers') loadCustomers();
   if (view === 'promotions') loadPromotionHistory();
+  if (view === 'reports') loadProfitReport();
 }
 
 function renderChart(key, canvas, config) {
@@ -46,9 +47,22 @@ function renderChart(key, canvas, config) {
   state.charts[key] = new Chart(canvas, config);
 }
 
+function filterQuery() {
+  const params = new URLSearchParams();
+  const values = {
+    start: $('#filterStart')?.value,
+    end: $('#filterEnd')?.value,
+    category: $('#filterCategory')?.value,
+    product: $('#filterProduct')?.value,
+  };
+  Object.entries(values).forEach(([key, value]) => { if (value) params.set(key, value); });
+  return params.toString();
+}
+
 async function loadDashboard() {
+  const query = filterQuery();
   const [dashboard, recommendations, alerts] = await Promise.all([
-    api('/api/dashboard'), api('/api/recommendations'), api('/api/alerts'),
+    api(`/api/dashboard${query ? `?${query}` : ''}`), api('/api/recommendations'), api('/api/alerts'),
   ]);
   $('#revenue').textContent = money(dashboard.revenue);
   $('#profit').textContent = money(dashboard.profit);
@@ -69,6 +83,24 @@ async function loadDashboard() {
   $('#recommendations').innerHTML = recommendations.map(item => `<tr><td>${item.product}</td><td>${item.category}</td><td>${item.stock}</td><td>${item.forecast_7d} units</td><td><b>${item.order} units</b></td><td><span class="badge ${item.priority}">${item.priority}</span></td></tr>`).join('');
   $('#alertCount').textContent = `${alerts.length} open`;
   $('#alertsList').innerHTML = alerts.length ? alerts.map(item => `<div class="alert-row"><span class="alert-icon ${item.severity}">!</span><div><b>${item.title}</b><small>${item.detail}</small></div><span class="badge ${item.severity === 'high' ? 'high' : 'medium'}">${item.severity}</span></div>`).join('') : '<p class="muted">No operational alerts. Your store is running smoothly.</p>';
+}
+
+async function loadFilterOptions() {
+  const products = await api('/api/products');
+  const categories = [...new Set(products.map(product => product.category))].sort();
+  $('#filterCategory').insertAdjacentHTML('beforeend', categories.map(category => `<option value="${category}">${category}</option>`).join(''));
+  $('#filterProduct').insertAdjacentHTML('beforeend', products.map(product => `<option value="${product.name}">${product.name}</option>`).join(''));
+}
+
+async function loadProfitReport() {
+  const query = filterQuery();
+  const report = await api(`/api/analytics/profit${query ? `?${query}` : ''}`);
+  $('#reportRevenue').textContent = money(report.revenue);
+  $('#reportProfit').textContent = money(report.profit);
+  $('#reportMargin').textContent = `${report.margin}%`;
+  $('#profitRows').innerHTML = report.rows.length
+    ? report.rows.map(row => `<tr><td><b>${row.product}</b></td><td>${row.category}</td><td>${money(row.revenue)}</td><td><b>${money(row.profit)}</b></td><td><span class="badge ${row.margin >= 35 ? 'healthy' : 'medium'}">${row.margin}%</span></td><td>${row.units}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="muted">No sales match the selected filters.</td></tr>';
 }
 
 async function loadProducts() {
@@ -115,6 +147,7 @@ async function loadApp() {
   $('#userName').textContent = user.name;
   $('#greeting').textContent = user.name.split(' ')[0];
   $('#userAvatar').textContent = user.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+  await loadFilterOptions();
   await loadDashboard();
 }
 
@@ -125,6 +158,18 @@ function closeProductModal() {
 }
 
 $('#todayLabel').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date()).toUpperCase();
+$('#filterStart').onchange = () => { loadDashboard(); if (!$('#reports').classList.contains('hidden')) loadProfitReport(); };
+$('#filterEnd').onchange = () => { loadDashboard(); if (!$('#reports').classList.contains('hidden')) loadProfitReport(); };
+$('#filterCategory').onchange = () => { loadDashboard(); if (!$('#reports').classList.contains('hidden')) loadProfitReport(); };
+$('#filterProduct').onchange = () => { loadDashboard(); if (!$('#reports').classList.contains('hidden')) loadProfitReport(); };
+$('#clearFilters').onclick = () => {
+  $('#filterStart').value = '';
+  $('#filterEnd').value = '';
+  $('#filterCategory').value = '';
+  $('#filterProduct').value = '';
+  loadDashboard();
+  if (!$('#reports').classList.contains('hidden')) loadProfitReport();
+};
 $('#authToggle').onclick = () => {
   state.register = !state.register;
   $('#authName').parentElement.classList.toggle('hidden', !state.register);
@@ -174,6 +219,7 @@ $('#exportSales').onclick = async () => {
     link.href = URL.createObjectURL(blob); link.download = 'retailpulse-sales.csv'; link.click(); URL.revokeObjectURL(link.href); showNotice('Sales report downloaded');
   } catch (error) { showNotice(error.message, true); }
 };
+$('#downloadReport').onclick = () => $('#exportSales').click();
 $('#simDiscount').oninput = updateSimulation;
 $('#simLift').oninput = updateSimulation;
 $('#simRevenue').oninput = updateSimulation;

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from .analytics import (alerts, customer_segments, dashboard, forecast,
-                        promotion_simulation, recommendations)
+                        profit_analytics, promotion_simulation, recommendations)
 from .auth import create_token, hash_password, require_user, verify_password
 from .database import Base, SessionLocal, engine
 from .models import (Customer, CustomerPurchase, Product, PromotionSimulation,
@@ -110,9 +110,29 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 def me(user: User = Depends(authenticated_user)):
     return {"id": user.id, "name": user.name, "email": user.email}
 
+def analytics_filters(start: str | None, end: str | None):
+    try:
+        return (date.fromisoformat(start) if start else None,
+                date.fromisoformat(end) if end else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Dates must use YYYY-MM-DD format") from exc
+
+
 @app.get("/api/dashboard")
-def get_dashboard(db: Session = Depends(get_db)):
-    return dashboard(db)
+def get_dashboard(start: str | None = None, end: str | None = None,
+                  category: str | None = None, product: str | None = None,
+                  db: Session = Depends(get_db)):
+    start_date, end_date = analytics_filters(start, end)
+    return dashboard(db, start_date, end_date, category, product)
+
+
+@app.get("/api/analytics/profit")
+def get_profit_analytics(start: str | None = None, end: str | None = None,
+                         category: str | None = None, product: str | None = None,
+                         db: Session = Depends(get_db),
+                         _: User = Depends(authenticated_user)):
+    start_date, end_date = analytics_filters(start, end)
+    return profit_analytics(db, start_date, end_date, category, product)
 
 @app.get("/api/recommendations")
 def get_recommendations(db: Session = Depends(get_db)):
